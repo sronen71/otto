@@ -32,7 +32,7 @@ def augment(X):
 # load in training data,
 X,y,encoder,scaler=data.load_train_data('data/train.csv')
 
-X=augment(X)
+#X=augment(X)
 
 #y=np.reshape(y,(len(y),1))
 #enc=OneHotEncoder(sparse=False)
@@ -89,9 +89,10 @@ num_round = 500 # 1000
 #preds=bst.predict(dtest)
 #bst.save_model('bst.model')
 
-#print 'running cross validation'
-#xgb.cv(param,dtrain,num_round,nfold=5,seed=1)
+print 'running cross validation'
+xgb.cv(param,dtrain,num_round,nfold=5,seed=1)
 
+"""
 X_train,X_val,y_train,y_val=cv.train_test_split(X,y,test_size=0.2,random_state=2)
 
 
@@ -105,7 +106,7 @@ preds1=bst.predict(dval)
 print log_loss(y_val,preds1)
 
 
-
+"""
 
 
 

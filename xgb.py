@@ -10,7 +10,8 @@ from sklearn import cross_validation as cv
 import sklearn as sk
 import xgboost as xgb
 from sklearn.preprocessing import OneHotEncoder
-
+import cPickle as pickle
+print 'sklearn version',sk.__version__
 
 test_size = 144368
 
@@ -123,7 +124,7 @@ while (delta>eps):
         print "iter ",num, "cv", k, "model loss",model_loss
         scores[val,:] += predicted
         scores_test += predicted_test
-        filename='xgb-modles/xgb--iter%s--cv%s.p' % (str(num),str(k))
+        filename='xgb-models/xgb--iter%s--cv%s.p' % (str(num),str(k))
         pickle.dump(bst,open(filename,'wb'))
     loss=log_loss(y,scores/num)
 

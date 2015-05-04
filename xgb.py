@@ -125,7 +125,7 @@ while (delta>eps):
         scores[val,:] += predicted
         scores_test += predicted_test
         filename='xgb-models/xgb--iter%s--cv%s.p' % (str(num),str(k))
-        pickle.dump(bst,open(filename,'wb'))
+	bst.dump_model(filename)
     loss=log_loss(y,scores/num)
 
     delta=prev_loss-loss

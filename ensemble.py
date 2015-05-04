@@ -1,14 +1,14 @@
 # 0.4483
 import numpy as np
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder,StandardScaler,OneHotEncoder
 
 from lasagne.layers import DenseLayer, InputLayer,DropoutLayer
 from lasagne.layers import FeaturePoolLayer
 from lasagne.nonlinearities import softmax,LeakyRectify
 from lasagne.updates import nesterov_momentum,momentum,adadelta
 from lasagne.init import HeNormal, Orthogonal
-
+from lasagne.objectives import categorical_crossentropy
+import theano.tensor as T
 
 from nolearn.lasagne import NeuralNet
 from nolearn.lasagne import BatchIterator
@@ -17,9 +17,19 @@ from sklearn import cross_validation as cv
 from sklearn.metrics import log_loss
 import sklearn as sk
 import theano
-import cPickle as pickle
 
 import data
+import cPickle as pickle
+
+
+def obj_log_loss(y, t, eps=1e-15):
+    """
+    cross entropy loss, summed over classes, mean over batches
+    """
+    y = T.clip(y, eps, 1 - eps)
+    loss = -T.sum(t * T.log(y)) / y.shape[0].astype(theano.config.floatX)
+    return loss
+
 
 def tfloat32(k):
     return np.cast['float32'](k)
@@ -42,7 +52,8 @@ class AdjustVariable(object):
 
 
 
-def build_net(randomize=False):
+def build_net(randomize=False,loss=categorical_crossentropy,
+        y_tensor_type=None,dropfactor=1.0,sizefactor=1):
 
     layers0=[('input',InputLayer),
             ('dropin',DropoutLayer),
@@ -53,40 +64,40 @@ def build_net(randomize=False):
             ('dense2',DenseLayer),
             ('dropout2',DropoutLayer),
             ('output',DenseLayer)]
-    n=[512,800,1024]
+    n=[int(512*sizefactor),int(800*sizefactor),int(1024*sizefactor)]
     leak=[0.3,0.0,0.0]
     drop=[0.1,0.2,0.3,0.4]
     if randomize:
         for i in range(3):
-            n[i] += np.random.randint(low=-n[i]//15,high=n[i]//15) 
+            n[i] += np.random.randint(low=-n[i]//15,high=n[i]//15)
         """
         for i in range(4):
             drop[i] *= np.random.uniform(0.8,1.2)
-            leak[0]=np.random.uniform(0.2,0.3)
-            leak[1]=np.random.uniform(0,0.1)
-            leak[2]=np.random.uniform(0.0,0.05)
+        leak[0]=np.random.uniform(0.2,0.3)
+        leak[1]=np.random.uniform(0,0.1)
+        leak[2]=np.random.uniform(0.0,0.05)
         """
         print "net: ", n,leak,drop
 
     net0=NeuralNet(layers=layers0,
         input_shape=(None,num_features),
-        dropin_p=drop[0],
+        dropin_p=drop[0]*dropfactor,
         dense0_num_units=n[0],
         dense0_W=HeNormal(),
         dense0_nonlinearity=LeakyRectify(leak[0]),
 
-        dropout0_p=drop[1],
+        dropout0_p=drop[1]*dropfactor,
         dense1_num_units=n[1],
         dense1_nonlinearity=LeakyRectify(leak[1]),
         dense1_W=HeNormal(), 
  
 
-        dropout1_p=drop[2],
+        dropout1_p=drop[2]*dropfactor,
         dense2_num_units=n[2], # 1024
         dense2_nonlinearity=LeakyRectify(leak[2]),
         dense2_W=HeNormal(),
  
-        dropout2_p=drop[3], 
+        dropout2_p=drop[3]*dropfactor, 
         
         output_num_units=num_classes,
         output_nonlinearity=softmax,
@@ -94,14 +105,16 @@ def build_net(randomize=False):
         update=nesterov_momentum,
         update_learning_rate = theano.shared(tfloat32(0.02)),
         update_momentum = theano.shared(tfloat32(0.9)),
-        eval_size=0,
+        eval_size=0.0,
         verbose=0,
-        max_epochs=200, # 200,
+        max_epochs=150, #150
         on_epoch_finished=[
             AdjustVariable('update_learning_rate',
                 epochs=[50,100],rates=[2e-3,2e-4])],
         regularization_rate=1e-5,
-        batch_iterator_train=BatchIterator(batch_size=128)
+        batch_iterator_train=BatchIterator(batch_size=128),
+        objective_loss_function= loss,
+        y_tensor_type=y_tensor_type
         )
 
     return net0
@@ -114,39 +127,27 @@ X_test,ids=data.load_test_data('data/test.csv',scaler)
 num_classes=len(encoder.classes_)
 num_features=X.shape[1]
 
-
-scores=[]
-p=None
-
-folds=5
-eps=1e-4
-delta=1
-num=0
 scores=np.zeros((y.shape[0],9))
-prev_loss=10
-while (delta>eps):
-
-    num += 1
-    skf_inner=cv.StratifiedKFold(y,n_folds=folds,shuffle=True,random_state=num)
-    for k,(bag,val) in enumerate(skf_inner):
+scores_test=np.zeros((X_test.shape[0],9))
+folds =5 
+for num in range(1,15):
+    skf=cv.StratifiedKFold(y,n_folds=folds,shuffle=True,random_state=num)
+    for k,(bag,val) in enumerate(skf):
         X_bag,y_bag=X[bag],y[bag]
         X_val,y_val=X[val],y[val]
-        net1=build_net(randomize=False)
-        net1.fit(X_bag,y_bag)
-        predicted=np.array(net1.predict_proba(X_val))
+        filename='nn-models/nn--semi--iter%s--cv%s.p' % (str(num),str(k))
+        net1=pickle.load(open(filename,'rb'))
+        predicted= np.array(net1.predict_proba(X_val))
         model_loss=log_loss(y[val],predicted)
-        print "iter ",num, "cv", k, "model loss",model_loss
+        print "iter ",num, "cv",k,"model loss",model_loss        
         scores[val,:] += predicted
-        filename='nn-modles/nn--iter%s--cv%s.p' % (str(num),str(k))
-        pickle.dump(net1,open(filename,'wb'))
+        test_take=int(.5*len(X_test))
+        predict_test = np.array(net1.predict_proba(X_test[test_take:]))
+        scores_test[test_take:,:] += predict_test
     loss=log_loss(y,scores/num)
-    
-    print "*iter ",num, "ensemble loss ",loss, "delta", delta
-    delta=prev_loss-loss
-    prev_loss=loss
+    print "*iter ",num, "ensemble loss ",loss
+    scores_test /= num
 
-
-
-#make_submission(net0,X_test,ids,encoder)
+data.write_submission(X_test,ids,scores_test,encoder,name='predictions/semi--nn--bag.csv')
 
 

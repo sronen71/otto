@@ -136,11 +136,11 @@ predicted_val=np.array(net1.predict_proba(X_val))
 loss1=log_loss(y[val],predicted_val)
 print "loss1",loss1
 
-test_take=int(0.7*len(X_test))
+test_take=int(0.5*len(X_test))
 predicted_test=np.array(net1.predict_proba(X_test))[:test_take]
 
 
-X_ext=np.vstack((X_train,X_test[:test_take])
+X_ext=np.vstack((X_train,X_test[:test_take]))
 
 enc=OneHotEncoder(sparse=False)
 enc.fit(np.reshape(y,(len(y),1)))
@@ -153,8 +153,8 @@ np.random.shuffle(s)
 X_ext=X_ext[s]
 Y_ext=Y_ext[s]
 
-# dropfactor 0.6, sizefactor=2.0 -> 0.437 
-net2=build_net(loss=obj_log_loss,y_tensor_type=T.matrix,dropfactor=0.6,sizefactor=2.0)
+# dropfactor 0.7, test_take =0.5, sizefactor=2.0 -> 0.4357
+net2=build_net(loss=obj_log_loss,y_tensor_type=T.matrix,dropfactor=0.7,sizefactor=2.0)
 net2.fit(X_ext,Y_ext.astype(np.float32))
 
 predicted_val=np.array(net2.predict_proba(X_val))

@@ -10,12 +10,13 @@ def load_train_data(path):
     np.random.seed(1)
     np.random.shuffle(X)
     X,labels=X[:,1:-1].astype(np.float32),X[:,-1]
+    ids=X[:,0].astype(str)
     encoder=LabelEncoder()
     y=encoder.fit_transform(labels).astype(np.int32)
     scaler=StandardScaler()
     scaler.fit(X)
     #X=scaler.fit_transform(X)
-    return X,y,encoder,scaler
+    return X,y,encoder,scaler,ids
 
 def load_test_data(path,scaler):
     df=pd.read_csv(path)

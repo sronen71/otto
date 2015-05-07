@@ -128,45 +128,50 @@ num_classes=len(encoder.classes_)
 num_features=X.shape[1]
 
 scores=np.zeros((y.shape[0],9))
-folds =5 
-for num in range(1,15):
-    skf=cv.StratifiedKFold(y,n_folds=folds,shuffle=True,random_state=num)
-    for k,(bag,val) in enumerate(skf):
-        X_bag,y_bag=X[bag],y[bag]
-        X_val,y_val=X[val],y[val]
-        filename='nn-models/nn--iter%s--cv%s.p' % (str(num),str(k))
-        net1=pickle.load(open(filename,'rb'))
-        predicted= np.array(net1.predict_proba(X_val))
-        model_loss=log_loss(y[val],predicted)
-        print "iter ",num, "cv",k,"model loss",model_loss
-        scores[val,:] += predicted
-
-        test_take=int(0.5*len(X_test))
-        predicted_test=np.array(net1.predict_proba(X_test))[:test_take]
-        X_ext=np.vstack((X_bag,X_test[:test_take]))
-        enc=OneHotEncoder(sparse=False)
-        enc.fit(np.reshape(y,(len(y),1)))
-        Y_bag=enc.transform(np.reshape(y_bag,(len(y_bag),1)))
-        Y_val=enc.transform(np.reshape(y_val,(len(y_val),1)))
-        Y_ext=np.vstack((Y_bag,predicted_test))
-        s=np.arange(len(X_ext))
-        np.random.shuffle(s)
-        X_ext=X_ext[s]
-        Y_ext=Y_ext[s]
-
-        net2=build_net(loss=obj_log_loss,y_tensor_type=T.matrix,dropfactor=0.7,sizefactor=2.0)
-        net2.fit(X_ext,Y_ext.astype(np.float32))
-        
-        filesave='nn-models/nn--semi--iter%s--cv%s.p' % (str(num),str(k))
-        pickle.dump(net2,open(filesave,'wb'))
-        predicted2=np.array(net2.predict_proba(X_val))
-        loss2=log_loss(y[val],predicted2)
-        print "loss 2",loss2
-        scores[val,:] += predicted2
-    loss=log_loss(y,scores/num)
-    print "*iter ",num, "ensemble loss ",loss
+folds =5
 
 
-write_submission(X_test,ids,encoder,name='nn--semi--bag.csv')
+test_take=int(0.5*len(X_test))
+test_A=range(test_take)
+test_B=range(test_take,X_test.shape[0])
+
+for part,test_part in [('B',test_B) ]:
+    for num in range(1,13):
+        skf=cv.StratifiedKFold(y,n_folds=folds,shuffle=True,random_state=num)
+        for k,(bag,val) in enumerate(skf):
+            X_bag,y_bag=X[bag],y[bag]
+            X_val,y_val=X[val],y[val]
+            filename='nn-models/nn--iter%s--cv%s.p' % (str(num),str(k))
+            net1=pickle.load(open(filename,'rb'))
+            predicted= np.array(net1.predict_proba(X_val))
+            model_loss=log_loss(y[val],predicted)
+            print "iter ",num, "cv",k,"model loss",model_loss
+            scores[val,:] += predicted
+
+            predicted_test=np.array(net1.predict_proba(X_test[test_part,:]))
+            X_ext=np.vstack((X_bag,X_test[test_part,:]))
+            enc=OneHotEncoder(sparse=False)
+            enc.fit(np.reshape(y,(len(y),1)))
+            Y_bag=enc.transform(np.reshape(y_bag,(len(y_bag),1)))
+            Y_val=enc.transform(np.reshape(y_val,(len(y_val),1)))
+            Y_ext=np.vstack((Y_bag,predicted_test))
+            s=np.arange(len(X_ext))
+            np.random.shuffle(s)
+            X_ext=X_ext[s]
+            Y_ext=Y_ext[s]
+
+            net2=build_net(loss=obj_log_loss,y_tensor_type=T.matrix,dropfactor=0.7,sizefactor=2.0)
+            net2.fit(X_ext,Y_ext.astype(np.float32))
+            
+            filesave='nn-models/nn--semi--iter%s--cv%s--part%s.p' % (str(num),str(k),part)
+            pickle.dump(net2,open(filesave,'wb'))
+            predicted2=np.array(net2.predict_proba(X_val))
+            loss2=log_loss(y[val],predicted2)
+            print "loss 2",loss2
+            scores[val,:] += predicted2
+        loss=log_loss(y,scores/num)
+        print "*iter ",num, "ensemble loss ",loss
+
+
 
 

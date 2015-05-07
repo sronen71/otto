@@ -33,7 +33,7 @@ def augment(X):
 
 # load in training data,
 np.random.seed(1)
-X,y,encoder,scaler=data.load_train_data('data/train.csv')
+X,y,encoder,scaler,ids_val=data.load_train_data('data/train.csv')
 X_test,ids=data.load_test_data('data/test.csv',scaler)
 #X=augment(X)
 
@@ -134,7 +134,7 @@ while (delta>eps):
 
 
 scores_test /= num
-data.write_submission(X_test,ids,scores_test,encoder,name=
+data.write_submission(ids,scores_test,encoder,name=
         'predictions/xgb--bag.csv')
 """
 X_train,X_val,y_train,y_val=cv.train_test_split(X,y,test_size=0.2,random_state=2)

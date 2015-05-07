@@ -52,12 +52,14 @@ def build_net(randomize=False):
             ('dropout1',DropoutLayer),
             ('dense2',DenseLayer),
             ('dropout2',DropoutLayer),
+            ('dense3',DenseLayer),
+            ('dropout3',DropoutLayer),
             ('output',DenseLayer)]
-    n=[512,800,1024]
-    leak=[0.3,0.0,0.0]
-    drop=[0.1,0.2,0.3,0.4]
+    n=[256,1024,1024,256]
+    leak=[0.25,0.00,0.0,0.0]
+    drop=[0.12,0.15,0.2,0.3,0.5]
     if randomize:
-        for i in range(3):
+        for i in range(4):
             n[i] += np.random.randint(low=-n[i]//15,high=n[i]//15) 
         """
         for i in range(4):
@@ -82,21 +84,27 @@ def build_net(randomize=False):
  
 
         dropout1_p=drop[2],
-        dense2_num_units=n[2], # 1024
+        dense2_num_units=n[2],
         dense2_nonlinearity=LeakyRectify(leak[2]),
         dense2_W=HeNormal(),
  
         dropout2_p=drop[3], 
-        
+
+        dense3_num_units=n[3], 
+        dense3_nonlinearity=LeakyRectify(leak[3]),
+        dense3_W=HeNormal(),
+        dropout3_p=drop[4], 
+ 
+
         output_num_units=num_classes,
         output_nonlinearity=softmax,
 
         update=nesterov_momentum,
         update_learning_rate = theano.shared(tfloat32(0.02)),
         update_momentum = theano.shared(tfloat32(0.9)),
-        eval_size=0,
-        verbose=0,
-        max_epochs=200, # 200,
+        eval_size=0.0,
+        verbose=1,
+        max_epochs=150, 
         on_epoch_finished=[
             AdjustVariable('update_learning_rate',
                 epochs=[50,100],rates=[2e-3,2e-4])],
@@ -109,7 +117,7 @@ def build_net(randomize=False):
 
 
 np.random.seed(1)
-X,y,encoder,scaler= data.load_train_data('data/train.csv')
+X,y,encoder,scaler,ids_val= data.load_train_data('data/train.csv')
 X_test,ids=data.load_test_data('data/test.csv',scaler)
 num_classes=len(encoder.classes_)
 num_features=X.shape[1]
@@ -137,7 +145,7 @@ while (delta>eps):
         model_loss=log_loss(y[val],predicted)
         print "iter ",num, "cv", k, "model loss",model_loss
         scores[val,:] += predicted
-        filename='nn-models/nn--iter%s--cv%s.p' % (str(num),str(k))
+        filename='nn-models/nnB--iter%s--cv%s.p' % (str(num),str(k))
         pickle.dump(net1,open(filename,'wb'))
     loss=log_loss(y,scores/num)
     

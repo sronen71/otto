@@ -90,9 +90,9 @@ for num in range(1,15):
 
 scores_test /= num
 scores /= num
-data.write_submission(X,ids_val,scores,encoder,name= 
+data.write_submission(ids_val,scores,encoder,name= 
         'predictions/xgb--bag-val.csv')
-data.write_submission(X_test,ids,scores_test,encoder,name=
+data.write_submission(ids,scores_test,encoder,name=
         'predictions/xgb--bag.csv')
 
 

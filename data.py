@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import csv
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 
@@ -25,7 +26,7 @@ def load_test_data(path,scaler):
     #X=scaler.transform(X)
     return X,ids
 
-def write_submission(X_test,ids,y_prob,encoder,name='submission.csv'):
+def write_submission(ids,y_prob,encoder,name='submission.csv'):
     with open(name,'w') as f:
         f.write('id,'+','.join(encoder.classes_)+'\n')
         for id, probs in zip(ids,y_prob):
@@ -35,4 +36,16 @@ def write_submission(X_test,ids,y_prob,encoder,name='submission.csv'):
 
 def make_submission(clf,X_test,ids,encoder,name='submission.csv'):
     y_prob=clf.predict_proba(X_test)
-    write_submission(X_test,ids,y_prob,encoder,name)
+    write_submission(ids,y_prob,encoder,name)
+
+def read_submission(name) :
+    probas=[]
+    ids=[]
+    with open(name,'rb') as f:
+        reader=csv.reader(f)
+        next(reader)
+        for row in reader:
+            probas.append(map(float,row[1:]))
+            ids.append(row[0])
+    return probas,ids
+    print "Read submission file",name

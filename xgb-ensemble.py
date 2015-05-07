@@ -85,7 +85,7 @@ for num in range(1,15):
         filename='xgb-models/xgb--iter%s--cv%s.p' % (str(num),str(k))
 	bst.dump_model(filename)
     loss=log_loss(y,scores/num)
-    print "*iter ",num, "ensemble loss ",loss, "delta", delta
+    print "*iter ",num, "ensemble loss ",loss
 
 
 scores_test /= num
